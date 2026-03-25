@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="PKC.Application/PKC.Application.csproj" />
+  <Project Path="PKC.Domain/PKC.Domain.csproj" />
+  <Project Path="PKC.Infrastructure/PKC.Infrastructure.csproj" />
+  <Project Path="PKC.Tests/PKC.Tests.csproj" />
+  <Project Path="PKC.Web/PKC.Web.csproj" />
+</Solution>
