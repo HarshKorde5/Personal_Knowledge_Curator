@@ -3,7 +3,6 @@ using PKC.Infrastructure.Data;
 using PKC.Application.Interfaces;
 using PKC.Infrastructure.Repositories;
 using PKC.Infrastructure.Services;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -14,6 +13,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder
 
 builder.Services.AddScoped<IItemRepository, ItemRepository>();
 builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+builder.Services.AddScoped<ItemProcessingService>();
+builder.Services.AddHostedService<ProcessingWorker>();
 
 var app = builder.Build();
 

@@ -7,12 +7,13 @@ using PKC.Domain.Entities;
 public class ItemService : IItemService
 {
     private readonly IItemRepository _repo;
+    private readonly IBackgroundTaskQueue _queue;
 
-    public ItemService(IItemRepository repo)
+    public ItemService(IItemRepository repo, IBackgroundTaskQueue queue)
     {
         _repo = repo;
+        _queue = queue;
     }
-
     public async Task<Guid> CreateUrlAsync(Guid userId, CreateItemDto dto)
     {
         var item = new Item
@@ -27,7 +28,7 @@ public class ItemService : IItemService
 
         await _repo.AddAsync(item);
         await _repo.SaveChangesAsync();
-
+        _queue.QueueItem(item.Id);
         return item.Id;
     }
 
