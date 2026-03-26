@@ -23,6 +23,8 @@ builder.Services.AddScoped<ContentExtractor>();
 builder.Services.AddScoped<ChunkingService>();
 builder.Services.AddScoped<EmbeddingService>();
 
+builder.Services.AddScoped<SearchService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
