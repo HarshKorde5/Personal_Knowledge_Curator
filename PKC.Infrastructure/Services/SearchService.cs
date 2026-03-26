@@ -19,7 +19,7 @@ public class SearchService
 
     public async Task<List<SearchResultDto>> SearchAsync(string query)
     {
-        var queryEmbedding = _embeddingService.GenerateEmbedding(query);
+        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(query);
 
         var results = await _context.Chunks
             .Where(c => c.Embedding != null)
@@ -28,7 +28,7 @@ public class SearchService
             .Select(c => new SearchResultDto
             {
                 Content = c.Content,
-                Score = c.Embedding!.CosineDistance(queryEmbedding)
+                Score = (Double)c.Embedding!.CosineDistance(queryEmbedding)
             })
             .ToListAsync();
 

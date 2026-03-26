@@ -79,11 +79,10 @@ public class ItemProcessingService
                     .Where(x => x.ItemId == item.Id)
                     .ToListAsync();
 
-                foreach (var chunk in itemChunks)
-                {
-                    chunk.Embedding = _embeddingService.GenerateEmbedding(chunk.Content);
-                }
-
+                var tasks = itemChunks.Select(async chunk => {
+                    chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                });
+                await Task.WhenAll(tasks);
                 await _context.SaveChangesAsync();
             }
 

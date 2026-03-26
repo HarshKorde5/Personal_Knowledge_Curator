@@ -1,29 +1,56 @@
 using Microsoft.Extensions.Logging;
 using Pgvector;
+using System.Text;
+using System.Text.Json;
 
 namespace PKC.Infrastructure.Services;
 
 public class EmbeddingService
 {
+    private readonly HttpClient _httpClient;
     private readonly ILogger<EmbeddingService> _logger;
 
-    public EmbeddingService(ILogger<EmbeddingService> logger)
+    public EmbeddingService(HttpClient httpClient, ILogger<EmbeddingService> logger)
     {
+        _httpClient = httpClient;
         _logger = logger;
     }
 
-    // TEMP: fake embedding (we'll replace with real AI next)
-    public Vector GenerateEmbedding(string text)
+    public async Task<Vector> GenerateEmbeddingAsync(string text)
     {
-        var random = new Random(text.GetHashCode());
-
-        var values = new float[1536];
-
-        for (int i = 0; i < values.Length; i++)
+        var requestBody = new
         {
-            values[i] = (float)(random.NextDouble() * 2 - 1);
-        }
+            model = "nomic-embed-text",
+            prompt = text
+        };
 
-        return new Vector(values);
+        var content = new StringContent(
+            JsonSerializer.Serialize(requestBody),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        try
+        {
+            var response = await _httpClient.PostAsync("http://localhost:11434/api/embeddings", content);
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(json);
+
+            var embeddingArray = doc.RootElement
+                .GetProperty("embedding")
+                .EnumerateArray()
+                .Select(x => x.GetSingle())
+                .ToArray();
+                
+            _logger.LogInformation("Generated embedding with dimension: {Dimension}", embeddingArray.Length);
+            return new Vector(embeddingArray);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Embedding generation failed");
+            throw;
+        }
     }
 }
