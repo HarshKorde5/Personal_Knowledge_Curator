@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Pgvector.EntityFrameworkCore;
 using PKC.Domain.Entities;
 using PKC.Infrastructure.Data;
@@ -8,82 +9,79 @@ namespace PKC.Infrastructure.Services;
 public class ConnectionService
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<ConnectionService> _logger;
 
-    public ConnectionService(AppDbContext context)
+    public ConnectionService(AppDbContext context, ILogger<ConnectionService> logger)
     {
         _context = context;
-    }
-public async Task CreateConnectionsAsync(Guid itemId)
-{
-    // 1. Get the IDs of the chunks we just processed
-    var sourceChunkIds = await _context.Chunks
-        .Where(c => c.ItemId == itemId && c.Embedding != null)
-        .Select(c => c.Id)
-        .ToListAsync();
-
-    foreach (var sourceId in sourceChunkIds)
-    {
-        // 2. Fetch the source embedding first
-        var sourceChunk = await _context.Chunks.FindAsync(sourceId);
-        if (sourceChunk?.Embedding == null) continue;
-
-        // 3. Let the Database find similar chunks (Server-side evaluation)
-        var relatedConnections = await _context.Chunks
-            .Where(target => target.Id != sourceId && target.Embedding != null)
-            // This translates to SQL <=> operator
-            .Where(target => target.Embedding!.CosineDistance(sourceChunk.Embedding) < 0.2) 
-            .Select(target => new Connection
-            {
-                Id = Guid.NewGuid(),
-                SourceChunkId = sourceId,
-                TargetChunkId = target.Id,
-                Score = (double)target.Embedding!.CosineDistance(sourceChunk.Embedding)
-            })
-            .ToListAsync();
-
-        await _context.Connections.AddRangeAsync(relatedConnections);
+        _logger = logger;
     }
 
-    await _context.SaveChangesAsync();
-}
-
-/*
     public async Task CreateConnectionsAsync(Guid itemId)
     {
-        var chunks = await _context.Chunks
+        var sourceChunks = await _context.Chunks
             .Where(c => c.ItemId == itemId && c.Embedding != null)
+            .Take(20)
             .ToListAsync();
 
-        var allChunks = await _context.Chunks
-            .Where(c => c.Embedding != null)
-            .ToListAsync();
+        if (sourceChunks.Count == 0)
+        {
+            _logger.LogWarning("No chunks found for item {ItemId}", itemId);
+            return;
+        }
 
         var connections = new List<Connection>();
 
-        foreach (var source in chunks)
+        foreach (var sourceChunk in sourceChunks)
         {
-            foreach (var target in allChunks)
+            var sourceEmbedding = sourceChunk.Embedding!;
+
+            var similarChunks = await _context.Chunks
+                .Where(target =>
+                    target.Id != sourceChunk.Id &&
+                    target.Embedding != null
+                )
+                .OrderBy(target =>
+                    target.Embedding!.CosineDistance(sourceEmbedding)
+                )
+                .Take(3)
+                .Select(target => new
+                {
+                    target.Id,
+                    Score = target.Embedding!.CosineDistance(sourceEmbedding)
+                })
+                .ToListAsync();
+
+            foreach (var match in similarChunks)
             {
-                if (source.Id == target.Id) continue;
-
-                var score = source.Embedding!.CosineDistance(target.Embedding!);
-
-                if (score < 0.2) // similarity threshold
+                if (match.Score < 0.3)
                 {
                     connections.Add(new Connection
                     {
                         Id = Guid.NewGuid(),
-                        SourceChunkId = source.Id,
-                        TargetChunkId = target.Id,
-                        Score = score
+                        SourceChunkId = sourceChunk.Id,
+                        TargetChunkId = match.Id,
+                        Score = match.Score,
+                        CreatedAt = DateTime.UtcNow
                     });
                 }
             }
         }
 
-        await _context.Connections.AddRangeAsync(connections);
-        await _context.SaveChangesAsync();
-    }
+        if (connections.Count > 0)
+        {
+            await _context.Connections.AddRangeAsync(connections);
+            await _context.SaveChangesAsync();
 
-    */
+            _logger.LogInformation(
+                "Created {Count} connections for item {ItemId}",
+                connections.Count,
+                itemId
+            );
+        }
+        else
+        {
+            _logger.LogInformation("No connections created for item {ItemId}", itemId);
+        }
+    }
 }
