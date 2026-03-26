@@ -29,6 +29,9 @@ builder.Services.AddScoped<AiService>();
 builder.Services.AddScoped<RagService>();
 builder.Services.AddHttpClient<EmbeddingService>();
 builder.Services.AddScoped<EmbeddingService>();
+
+builder.Services.AddScoped<ConnectionService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

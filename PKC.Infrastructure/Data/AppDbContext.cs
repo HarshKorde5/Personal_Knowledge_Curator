@@ -12,6 +12,8 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Chunk> Chunks => Set<Chunk>();
+
+    public DbSet<Connection> Connections => Set<Connection>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -79,5 +81,18 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Embedding)
                 .HasColumnType("vector(768)");
         });
+
+
+        //-------------------------------------------------
+        // CONNECTION CONFIGURATION
+        //-------------------------------------------------
+        modelBuilder.Entity<Connection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.HasIndex(x => x.SourceChunkId);
+            entity.HasIndex(x => x.TargetChunkId);
+        });
+
     }
 }

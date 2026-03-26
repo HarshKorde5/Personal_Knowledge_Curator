@@ -1,0 +1,53 @@
+using Microsoft.EntityFrameworkCore;
+using Pgvector.EntityFrameworkCore;
+using PKC.Domain.Entities;
+using PKC.Infrastructure.Data;
+
+namespace PKC.Infrastructure.Services;
+
+public class ConnectionService
+{
+    private readonly AppDbContext _context;
+
+    public ConnectionService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task CreateConnectionsAsync(Guid itemId)
+    {
+        var chunks = await _context.Chunks
+            .Where(c => c.ItemId == itemId && c.Embedding != null)
+            .ToListAsync();
+
+        var allChunks = await _context.Chunks
+            .Where(c => c.Embedding != null)
+            .ToListAsync();
+
+        var connections = new List<Connection>();
+
+        foreach (var source in chunks)
+        {
+            foreach (var target in allChunks)
+            {
+                if (source.Id == target.Id) continue;
+
+                var score = source.Embedding!.CosineDistance(target.Embedding!);
+
+                if (score < 0.2) // similarity threshold
+                {
+                    connections.Add(new Connection
+                    {
+                        Id = Guid.NewGuid(),
+                        SourceChunkId = source.Id,
+                        TargetChunkId = target.Id,
+                        Score = score
+                    });
+                }
+            }
+        }
+
+        await _context.Connections.AddRangeAsync(connections);
+        await _context.SaveChangesAsync();
+    }
+}

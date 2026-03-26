@@ -14,18 +14,22 @@ public class ItemProcessingService
 
     private readonly EmbeddingService _embeddingService;
 
+    private readonly ConnectionService _connectionService;
+
     public ItemProcessingService(
         AppDbContext context,
         ILogger<ItemProcessingService> logger,
         ContentExtractor extractor,
         ChunkingService chunkingService,
-        EmbeddingService embeddingService)
+        EmbeddingService embeddingService,
+        ConnectionService connectionService)
     {
         _context = context;
         _logger = logger;
         _extractor = extractor;
         _chunkingService = chunkingService;
         _embeddingService = embeddingService;
+        _connectionService = connectionService;
     }
 
     public async Task ProcessAsync(Guid itemId)
@@ -41,6 +45,9 @@ public class ItemProcessingService
         try
         {
 
+            //------------------------------------------------------------------------------------
+            // STATUS : EXTRACTING
+            //------------------------------------------------------------------------------------
             item.Status = ItemStatus.Extracting;
             await _context.SaveChangesAsync();
 
@@ -50,6 +57,10 @@ public class ItemProcessingService
             {
                 var extracted = await _extractor.ExtractFromUrlAsync(item.SourceUrl);
 
+
+                //------------------------------------------------------------------------------------
+                // STATUS : FAILED
+                //------------------------------------------------------------------------------------
                 if (string.IsNullOrWhiteSpace(extracted))
                 {
                     item.Status = ItemStatus.Failed;
@@ -64,6 +75,10 @@ public class ItemProcessingService
                     .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                     .Length;
 
+
+                //------------------------------------------------------------------------------------
+                // STATUS : CHUNKING
+                //------------------------------------------------------------------------------------
                 item.Status = ItemStatus.Chunking;
                 await _context.SaveChangesAsync();
 
@@ -72,6 +87,10 @@ public class ItemProcessingService
                 await _context.Chunks.AddRangeAsync(chunks);
                 await _context.SaveChangesAsync();
 
+
+                //------------------------------------------------------------------------------------
+                // STATUS : EMBEDDING
+                //------------------------------------------------------------------------------------
                 item.Status = ItemStatus.Embedding;
                 await _context.SaveChangesAsync();
 
@@ -79,11 +98,19 @@ public class ItemProcessingService
                     .Where(x => x.ItemId == item.Id)
                     .ToListAsync();
 
-                var tasks = itemChunks.Select(async chunk => {
+                var tasks = itemChunks.Select(async chunk =>
+                {
                     chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
                 });
+
                 await Task.WhenAll(tasks);
                 await _context.SaveChangesAsync();
+
+
+                //------------------------------------------------------------------------------------
+                // CONNECTION DISCOVERY
+                //------------------------------------------------------------------------------------
+                await _connectionService.CreateConnectionsAsync(item.Id);
             }
 
             item.Status = ItemStatus.Ready;
