@@ -11,7 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Item> Items => Set<Item>();
-
+    public DbSet<Chunk> Chunks => Set<Chunk>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -39,7 +39,7 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(x => x.UserId);
 
-            
+
             entity.Property(x => x.Type)
                 .HasConversion<string>()
                 .HasColumnType("text");
@@ -61,6 +61,16 @@ public class AppDbContext : DbContext
                 .HasColumnType("text");
 
             entity.Property(x => x.FailureReason)
+                .HasColumnType("text");
+        });
+
+        modelBuilder.Entity<Chunk>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.HasIndex(x => x.ItemId);
+
+            entity.Property(x => x.Content)
                 .HasColumnType("text");
         });
     }

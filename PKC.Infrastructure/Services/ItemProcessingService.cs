@@ -10,15 +10,17 @@ public class ItemProcessingService
     private readonly AppDbContext _context;
     private readonly ILogger<ItemProcessingService> _logger;
     private readonly ContentExtractor _extractor;
-
+    private readonly ChunkingService _chunkingService;
     public ItemProcessingService(
         AppDbContext context,
         ILogger<ItemProcessingService> logger,
-        ContentExtractor extractor)
+        ContentExtractor extractor,
+        ChunkingService chunkingService)
     {
         _context = context;
         _logger = logger;
         _extractor = extractor;
+        _chunkingService = chunkingService;
     }
 
     public async Task ProcessAsync(Guid itemId)
@@ -56,6 +58,14 @@ public class ItemProcessingService
                 item.WordCount = extracted
                     .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                     .Length;
+
+                item.Status = ItemStatus.Chunking;
+                await _context.SaveChangesAsync();
+
+                var chunks = _chunkingService.CreateChunks(item.Id, item.ExtractedText!);
+
+                await _context.Chunks.AddRangeAsync(chunks);
+                await _context.SaveChangesAsync();
             }
 
             item.Status = ItemStatus.Ready;

@@ -20,6 +20,8 @@ builder.Services.AddHostedService<ProcessingWorker>();
 builder.Services.AddHttpClient<ContentExtractor>();
 builder.Services.AddScoped<ContentExtractor>();
 
+builder.Services.AddScoped<ChunkingService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
