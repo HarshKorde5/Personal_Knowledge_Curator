@@ -24,6 +24,9 @@ builder.Services.AddScoped<ChunkingService>();
 builder.Services.AddScoped<EmbeddingService>();
 
 builder.Services.AddScoped<SearchService>();
+builder.Services.AddHttpClient<AiService>(client => client.Timeout = TimeSpan.FromMinutes(5));
+builder.Services.AddScoped<AiService>();
+builder.Services.AddScoped<RagService>();
 
 var app = builder.Build();
 
