@@ -4,15 +4,21 @@ using PKC.Domain.Entities;
 using PKC.Infrastructure.Data;
 
 namespace PKC.Infrastructure.Services;
+
 public class ItemProcessingService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<ItemProcessingService> _logger;
+    private readonly ContentExtractor _extractor;
 
-    public ItemProcessingService(AppDbContext context, ILogger<ItemProcessingService> logger)
+    public ItemProcessingService(
+        AppDbContext context,
+        ILogger<ItemProcessingService> logger,
+        ContentExtractor extractor)
     {
         _context = context;
         _logger = logger;
+        _extractor = extractor;
     }
 
     public async Task ProcessAsync(Guid itemId)
@@ -27,16 +33,31 @@ public class ItemProcessingService
 
         try
         {
-            // STEP 1 — Extracting
+
             item.Status = ItemStatus.Extracting;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Processing item {ItemId}", itemId);
+            _logger.LogInformation("Extracting content for item {ItemId}", itemId);
 
-            // TEMP: simulate extraction
-            await Task.Delay(2000);
+            if (item.Type == ItemType.Url && !string.IsNullOrEmpty(item.SourceUrl))
+            {
+                var extracted = await _extractor.ExtractFromUrlAsync(item.SourceUrl);
 
-            item.ExtractedText = "Sample extracted content";
+                if (string.IsNullOrWhiteSpace(extracted))
+                {
+                    item.Status = ItemStatus.Failed;
+                    item.FailureReason = "Failed to extract content";
+                    await _context.SaveChangesAsync();
+                    return;
+                }
+
+                item.ExtractedText = extracted;
+
+                item.WordCount = extracted
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Length;
+            }
+
             item.Status = ItemStatus.Ready;
             item.ProcessedAt = DateTime.UtcNow;
 

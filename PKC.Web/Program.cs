@@ -17,6 +17,9 @@ builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 builder.Services.AddScoped<ItemProcessingService>();
 builder.Services.AddHostedService<ProcessingWorker>();
 
+builder.Services.AddHttpClient<ContentExtractor>();
+builder.Services.AddScoped<ContentExtractor>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

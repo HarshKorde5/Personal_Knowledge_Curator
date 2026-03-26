@@ -1,5 +1,6 @@
 namespace PKC.Infrastructure.Services;
 
+using Microsoft.Extensions.Logging;
 using PKC.Application.DTOs;
 using PKC.Application.Interfaces;
 using PKC.Domain.Entities;
@@ -8,11 +9,13 @@ public class ItemService : IItemService
 {
     private readonly IItemRepository _repo;
     private readonly IBackgroundTaskQueue _queue;
+    private readonly ILogger<ItemService> _logger;
 
-    public ItemService(IItemRepository repo, IBackgroundTaskQueue queue)
+    public ItemService(IItemRepository repo, IBackgroundTaskQueue queue, ILogger<ItemService> logger)
     {
         _repo = repo;
         _queue = queue;
+        _logger = logger;
     }
     public async Task<Guid> CreateUrlAsync(Guid userId, CreateItemDto dto)
     {
@@ -25,10 +28,12 @@ public class ItemService : IItemService
             Title = dto.Title,
             Status = ItemStatus.Pending
         };
-
+        _logger.LogInformation("Saving item for user {UserId}", userId);
         await _repo.AddAsync(item);
         await _repo.SaveChangesAsync();
         _queue.QueueItem(item.Id);
+
+        _logger.LogInformation("Item saved with ID {ItemId}", item.Id);
         return item.Id;
     }
 
