@@ -11,16 +11,21 @@ public class ItemProcessingService
     private readonly ILogger<ItemProcessingService> _logger;
     private readonly ContentExtractor _extractor;
     private readonly ChunkingService _chunkingService;
+
+    private readonly EmbeddingService _embeddingService;
+
     public ItemProcessingService(
         AppDbContext context,
         ILogger<ItemProcessingService> logger,
         ContentExtractor extractor,
-        ChunkingService chunkingService)
+        ChunkingService chunkingService,
+        EmbeddingService embeddingService)
     {
         _context = context;
         _logger = logger;
         _extractor = extractor;
         _chunkingService = chunkingService;
+        _embeddingService = embeddingService;
     }
 
     public async Task ProcessAsync(Guid itemId)
@@ -65,6 +70,20 @@ public class ItemProcessingService
                 var chunks = _chunkingService.CreateChunks(item.Id, item.ExtractedText!);
 
                 await _context.Chunks.AddRangeAsync(chunks);
+                await _context.SaveChangesAsync();
+
+                item.Status = ItemStatus.Embedding;
+                await _context.SaveChangesAsync();
+
+                var itemChunks = await _context.Chunks
+                    .Where(x => x.ItemId == item.Id)
+                    .ToListAsync();
+
+                foreach (var chunk in itemChunks)
+                {
+                    chunk.Embedding = _embeddingService.GenerateEmbedding(chunk.Content);
+                }
+
                 await _context.SaveChangesAsync();
             }
 

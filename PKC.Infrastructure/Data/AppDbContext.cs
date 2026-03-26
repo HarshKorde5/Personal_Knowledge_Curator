@@ -15,7 +15,7 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        modelBuilder.HasPostgresExtension("vector");
         // ---------------------------
         // USER CONFIGURATION
         // ---------------------------
@@ -64,6 +64,9 @@ public class AppDbContext : DbContext
                 .HasColumnType("text");
         });
 
+        //-------------------------------------------
+        // CHUNK CONFIGURATION
+        //------------------------------------------
         modelBuilder.Entity<Chunk>(entity =>
         {
             entity.HasKey(x => x.Id);
@@ -72,6 +75,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.Content)
                 .HasColumnType("text");
+
+            entity.Property(x => x.Embedding)
+                .HasColumnType("vector(1536)");
         });
     }
 }

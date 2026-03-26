@@ -1,3 +1,4 @@
+using Pgvector;
 namespace PKC.Domain.Entities;
 
 public class Chunk
@@ -6,11 +7,14 @@ public class Chunk
 
     public Guid ItemId { get; set; }
 
+    public Vector? Embedding { get; set; }
+
     public string Content { get; set; } = null!;
 
     public int Order { get; set; }
 
     public int WordCount { get; set; }
+
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

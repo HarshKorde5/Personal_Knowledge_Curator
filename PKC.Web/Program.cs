@@ -9,7 +9,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), x => { x.UseVector();}));
 
 builder.Services.AddScoped<IItemRepository, ItemRepository>();
 builder.Services.AddScoped<IItemService, ItemService>();
@@ -21,6 +21,7 @@ builder.Services.AddHttpClient<ContentExtractor>();
 builder.Services.AddScoped<ContentExtractor>();
 
 builder.Services.AddScoped<ChunkingService>();
+builder.Services.AddScoped<EmbeddingService>();
 
 var app = builder.Build();
 
