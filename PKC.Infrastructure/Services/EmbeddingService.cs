@@ -18,6 +18,10 @@ public class EmbeddingService
 
     public async Task<Vector> GenerateEmbeddingAsync(string text)
     {
+        if(text.Length > 1000)
+        {
+            text = text.Substring(0,1000);
+        }
         var requestBody = new
         {
             model = "nomic-embed-text",

@@ -13,7 +13,41 @@ public class ConnectionService
     {
         _context = context;
     }
+public async Task CreateConnectionsAsync(Guid itemId)
+{
+    // 1. Get the IDs of the chunks we just processed
+    var sourceChunkIds = await _context.Chunks
+        .Where(c => c.ItemId == itemId && c.Embedding != null)
+        .Select(c => c.Id)
+        .ToListAsync();
 
+    foreach (var sourceId in sourceChunkIds)
+    {
+        // 2. Fetch the source embedding first
+        var sourceChunk = await _context.Chunks.FindAsync(sourceId);
+        if (sourceChunk?.Embedding == null) continue;
+
+        // 3. Let the Database find similar chunks (Server-side evaluation)
+        var relatedConnections = await _context.Chunks
+            .Where(target => target.Id != sourceId && target.Embedding != null)
+            // This translates to SQL <=> operator
+            .Where(target => target.Embedding!.CosineDistance(sourceChunk.Embedding) < 0.2) 
+            .Select(target => new Connection
+            {
+                Id = Guid.NewGuid(),
+                SourceChunkId = sourceId,
+                TargetChunkId = target.Id,
+                Score = (double)target.Embedding!.CosineDistance(sourceChunk.Embedding)
+            })
+            .ToListAsync();
+
+        await _context.Connections.AddRangeAsync(relatedConnections);
+    }
+
+    await _context.SaveChangesAsync();
+}
+
+/*
     public async Task CreateConnectionsAsync(Guid itemId)
     {
         var chunks = await _context.Chunks
@@ -50,4 +84,6 @@ public class ConnectionService
         await _context.Connections.AddRangeAsync(connections);
         await _context.SaveChangesAsync();
     }
+
+    */
 }

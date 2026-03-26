@@ -96,11 +96,28 @@ public class ItemProcessingService
 
                 var itemChunks = await _context.Chunks
                     .Where(x => x.ItemId == item.Id)
+                    .Take(20)
                     .ToListAsync();
+
+                // var tasks = itemChunks.Select(async chunk =>
+                // {
+                //     chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                // });
+
+                var semaphore = new SemaphoreSlim(5);
 
                 var tasks = itemChunks.Select(async chunk =>
                 {
-                    chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                    await semaphore.WaitAsync();
+
+                    try
+                    {
+                        chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
                 });
 
                 await Task.WhenAll(tasks);

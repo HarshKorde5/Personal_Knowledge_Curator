@@ -4,7 +4,7 @@ namespace PKC.Infrastructure.Services;
 
 public class ChunkingService
 {
-    private const int CHUNK_SIZE = 300;
+    private const int CHUNK_SIZE = 500;
 
     public List<Chunk> CreateChunks(Guid itemId, string text)
     {
