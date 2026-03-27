@@ -1,8 +1,7 @@
 namespace PKC.Application.DTOs;
 
-public class SearchResultDto
+public class ResurfaceResultDto
 {
-    public Guid Id { get; set; }
     public string Content { get; set; } = null!;
     public double Score { get; set; }
 }

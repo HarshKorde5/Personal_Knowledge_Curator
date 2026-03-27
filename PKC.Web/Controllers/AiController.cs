@@ -18,8 +18,8 @@ public class AiController : ControllerBase
     [HttpPost("ask")]
     public async Task<IActionResult> Ask(SearchRequestDto dto)
     {
-        var answer = await _ragService.AskAsync(dto.Query);
+        var result = await _ragService.AskAsync(dto.Query);
 
-        return Ok(new { answer });
+        return Ok(result);
     }
 }

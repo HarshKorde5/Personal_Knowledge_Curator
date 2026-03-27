@@ -35,6 +35,8 @@ builder.Services.AddScoped<EmbeddingService>();
 
 builder.Services.AddScoped<ConnectionService>();
 
+builder.Services.AddScoped<ResurfacingService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

@@ -27,6 +27,8 @@ public class SearchService
             .Take(5)
             .Select(c => new SearchResultDto
             {
+
+                Id = c.Id,
                 Content = c.Content,
                 Score = (Double)c.Embedding!.CosineDistance(queryEmbedding)
             })
