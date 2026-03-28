@@ -43,12 +43,15 @@ public class ItemProcessingService
         try
         {
             //------------------------------------------------------------------------------------
-            // STATUS: EXTRACTING — resolve raw text from either URL or Note content
+            // STATUS: EXTRACTING 
             //------------------------------------------------------------------------------------
             item.Status = ItemStatus.Extracting;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Extracting content for item {ItemId} (type: {Type})", itemId, item.Type);
+            _logger.LogInformation(
+                "Extracting content for item {ItemId} (type: {Type})",
+                itemId,
+                item.Type);
 
             string? textToProcess = null;
 
@@ -60,6 +63,35 @@ public class ItemProcessingService
                 {
                     item.Status = ItemStatus.Failed;
                     item.FailureReason = "Failed to extract content from URL";
+                    await _context.SaveChangesAsync();
+                    return;
+                }
+
+                item.ExtractedText = extracted;
+                textToProcess = extracted;
+            }
+            else if (item.Type == ItemType.Pdf && !string.IsNullOrEmpty(item.FilePath))
+            {
+                if (!File.Exists(item.FilePath))
+                {
+                    item.Status = ItemStatus.Failed;
+                    item.FailureReason = $"PDF file not found on disk: {item.FilePath}";
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogError(
+                        "PDF file missing for item {ItemId}: {FilePath}",
+                        itemId,
+                        item.FilePath);
+
+                    return;
+                }
+
+                var extracted = _extractor.ExtractFromPdf(item.FilePath);
+
+                if (string.IsNullOrWhiteSpace(extracted))
+                {
+                    item.Status = ItemStatus.Failed;
+                    item.FailureReason = "Failed to extract text from PDF — file may be scanned/image-only";
                     await _context.SaveChangesAsync();
                     return;
                 }
@@ -108,6 +140,7 @@ public class ItemProcessingService
                 .ToListAsync();
 
             var semaphore = new SemaphoreSlim(3);
+
             var tasks = itemChunks.Select(async chunk =>
             {
                 await semaphore.WaitAsync();
@@ -128,7 +161,11 @@ public class ItemProcessingService
 
             await Task.WhenAll(tasks);
 
-            _logger.LogInformation("Saving {Count} embeddings for item {ItemId}", itemChunks.Count, itemId);
+            _logger.LogInformation(
+                "Saving {Count} embeddings for item {ItemId}",
+                itemChunks.Count,
+                itemId);
+
             await _context.SaveChangesAsync();
 
             //------------------------------------------------------------------------------------

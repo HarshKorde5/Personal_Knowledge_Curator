@@ -65,4 +65,28 @@ public class ItemService : IItemService
 
         return item.Id;
     }
+
+    public async Task<Guid> CreateFromPdfAsync(Guid userId, string filePath, string? title)
+    {
+        var item = new Item
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Type = ItemType.Pdf,
+            FilePath = filePath,
+            Title = title,
+            Status = ItemStatus.Pending
+        };
+
+        _logger.LogInformation("Saving PDF item for user {UserId}, file: {FilePath}", userId, filePath);
+
+        await _repo.AddAsync(item);
+        await _repo.SaveChangesAsync();
+
+        _queue.QueueItem(item.Id);
+
+        _logger.LogInformation("PDF item saved and queued with ID {ItemId}", item.Id);
+
+        return item.Id;
+    }
 }
