@@ -102,7 +102,26 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.Email).IsRequired();
 
-            entity.Property(x=>x.PasswordHash).IsRequired();
+            entity.Property(x => x.PasswordHash).IsRequired();
         });
+
+        //------------------------------------------------------------------
+        //  User attachment congfiguration
+        //------------------------------------------------------------------
+
+        modelBuilder.Entity<Item>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId);
+
+        modelBuilder.Entity<Chunk>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId);
+
+        modelBuilder.Entity<Connection>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId);
     }
 }

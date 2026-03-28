@@ -11,9 +11,7 @@ public class ItemProcessingService
     private readonly ILogger<ItemProcessingService> _logger;
     private readonly ContentExtractor _extractor;
     private readonly ChunkingService _chunkingService;
-
     private readonly EmbeddingService _embeddingService;
-
     private readonly ConnectionService _connectionService;
 
     public ItemProcessingService(
@@ -44,105 +42,116 @@ public class ItemProcessingService
 
         try
         {
-
             //------------------------------------------------------------------------------------
-            // STATUS : EXTRACTING
+            // STATUS: EXTRACTING — resolve raw text from either URL or Note content
             //------------------------------------------------------------------------------------
             item.Status = ItemStatus.Extracting;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Extracting content for item {ItemId}", itemId);
+            _logger.LogInformation("Extracting content for item {ItemId} (type: {Type})", itemId, item.Type);
+
+            string? textToProcess = null;
 
             if (item.Type == ItemType.Url && !string.IsNullOrEmpty(item.SourceUrl))
             {
                 var extracted = await _extractor.ExtractFromUrlAsync(item.SourceUrl);
 
-
-                //------------------------------------------------------------------------------------
-                // STATUS : FAILED
-                //------------------------------------------------------------------------------------
                 if (string.IsNullOrWhiteSpace(extracted))
                 {
                     item.Status = ItemStatus.Failed;
-                    item.FailureReason = "Failed to extract content";
+                    item.FailureReason = "Failed to extract content from URL";
                     await _context.SaveChangesAsync();
                     return;
                 }
 
                 item.ExtractedText = extracted;
-
-                item.WordCount = extracted
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .Length;
-
-
-                //------------------------------------------------------------------------------------
-                // STATUS : CHUNKING
-                //------------------------------------------------------------------------------------
-                item.Status = ItemStatus.Chunking;
-                await _context.SaveChangesAsync();
-
-                var chunks = _chunkingService.CreateChunks(item.Id, item.ExtractedText!);
-
-                await _context.Chunks.AddRangeAsync(chunks);
-                await _context.SaveChangesAsync();
-
-
-                //------------------------------------------------------------------------------------
-                // STATUS : EMBEDDING
-                //------------------------------------------------------------------------------------
-                item.Status = ItemStatus.Embedding;
-                await _context.SaveChangesAsync();
-
-                var itemChunks = await _context.Chunks
-                    .Where(x => x.ItemId == item.Id)
-                    .Take(20)
-                    .ToListAsync();
-
-                // var tasks = itemChunks.Select(async chunk =>
-                // {
-                //     chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
-                // });
-
-                var semaphore = new SemaphoreSlim(5);
-
-                var tasks = itemChunks.Select(async chunk =>
-                {
-                    await semaphore.WaitAsync();
-
-                    try
-                    {
-                        chunk.Embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
-
-                await Task.WhenAll(tasks);
-                await _context.SaveChangesAsync();
-
-
-                //------------------------------------------------------------------------------------
-                // CONNECTION DISCOVERY
-                //------------------------------------------------------------------------------------
-                await _connectionService.CreateConnectionsAsync(item.Id);
+                textToProcess = extracted;
+            }
+            else if (item.Type == ItemType.Note && !string.IsNullOrEmpty(item.RawContent))
+            {
+                textToProcess = item.RawContent;
             }
 
+            if (string.IsNullOrWhiteSpace(textToProcess))
+            {
+                item.Status = ItemStatus.Failed;
+                item.FailureReason = "No content available to process";
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            item.WordCount = textToProcess
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Length;
+
+            //------------------------------------------------------------------------------------
+            // STATUS: CHUNKING
+            //------------------------------------------------------------------------------------
+            item.Status = ItemStatus.Chunking;
+            await _context.SaveChangesAsync();
+
+            var chunks = _chunkingService.CreateChunks(item.Id, item.UserId, textToProcess);
+
+            await _context.Chunks.AddRangeAsync(chunks);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Created {Count} chunks for item {ItemId}", chunks.Count, itemId);
+
+            //------------------------------------------------------------------------------------
+            // STATUS: EMBEDDING
+            //------------------------------------------------------------------------------------
+            item.Status = ItemStatus.Embedding;
+            await _context.SaveChangesAsync();
+
+            var itemChunks = await _context.Chunks
+                .Where(x => x.ItemId == item.Id)
+                .ToListAsync();
+
+            var semaphore = new SemaphoreSlim(3);
+            var tasks = itemChunks.Select(async chunk =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var vector = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                    if (vector != null)
+                    {
+                        chunk.Embedding = vector;
+                        _context.Entry(chunk).Property(x => x.Embedding).IsModified = true;
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks);
+
+            _logger.LogInformation("Saving {Count} embeddings for item {ItemId}", itemChunks.Count, itemId);
+            await _context.SaveChangesAsync();
+
+            //------------------------------------------------------------------------------------
+            // CONNECTION DISCOVERY
+            //------------------------------------------------------------------------------------
+            await _connectionService.CreateConnectionsAsync(item.Id, item.UserId);
+
+            //------------------------------------------------------------------------------------
+            // STATUS: READY
+            //------------------------------------------------------------------------------------
             item.Status = ItemStatus.Ready;
             item.ProcessedAt = DateTime.UtcNow;
-
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Item {ItemId} processing complete", itemId);
         }
         catch (Exception ex)
         {
             item.Status = ItemStatus.Failed;
             item.FailureReason = ex.Message;
-
             await _context.SaveChangesAsync();
 
-            _logger.LogError(ex, "Processing failed for {ItemId}", itemId);
+            _logger.LogError(ex, "Processing failed for item {ItemId}", itemId);
         }
     }
 }

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using PKC.Application.DTOs;
 using PKC.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using PKC.Web.Extensions;
 
 namespace PKC.Web.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/items")]
 public class ItemsController : ControllerBase
@@ -15,20 +18,36 @@ public class ItemsController : ControllerBase
         _service = service;
     }
 
-    // TEMP (will replace with JWT later)
-    private Guid GetUserId() => Guid.Parse("11111111-1111-1111-1111-111111111111");
-
     [HttpPost("url")]
-    public async Task<IActionResult> CreateUrl(CreateItemDto dto)
+    public async Task<IActionResult> CreateFromUrl(CreateItemDto dto)
     {
-        var id = await _service.CreateUrlAsync(GetUserId(), dto);
-        return Accepted(new { itemId = id });
+        try
+        {
+            // The logic: middleware has already validated the token by now
+            var userId = HttpContext.GetUserId();
+
+            var itemId = await _service.CreateFromUrlAsync(userId, dto);
+
+            return Accepted(new { itemId });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
+        }
     }
 
     [HttpPost("note")]
     public async Task<IActionResult> CreateNote(CreateItemDto dto)
     {
-        var id = await _service.CreateNoteAsync(GetUserId(), dto);
-        return Accepted(new { itemId = id });
+        try
+        {
+            var userId = HttpContext.GetUserId();
+            var id = await _service.CreateNoteAsync(userId, dto);
+            return Accepted(new { itemId = id });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

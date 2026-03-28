@@ -17,7 +17,8 @@ public class ItemService : IItemService
         _queue = queue;
         _logger = logger;
     }
-    public async Task<Guid> CreateUrlAsync(Guid userId, CreateItemDto dto)
+
+    public async Task<Guid> CreateFromUrlAsync(Guid userId, CreateItemDto dto)
     {
         var item = new Item
         {
@@ -28,12 +29,16 @@ public class ItemService : IItemService
             Title = dto.Title,
             Status = ItemStatus.Pending
         };
-        _logger.LogInformation("Saving item for user {UserId}", userId);
+
+        _logger.LogInformation("Saving URL item for user {UserId}", userId);
+
         await _repo.AddAsync(item);
         await _repo.SaveChangesAsync();
+
         _queue.QueueItem(item.Id);
 
-        _logger.LogInformation("Item saved with ID {ItemId}", item.Id);
+        _logger.LogInformation("URL item saved and queued with ID {ItemId}", item.Id);
+
         return item.Id;
     }
 
@@ -49,8 +54,14 @@ public class ItemService : IItemService
             Status = ItemStatus.Pending
         };
 
+        _logger.LogInformation("Saving note item for user {UserId}", userId);
+
         await _repo.AddAsync(item);
         await _repo.SaveChangesAsync();
+
+        _queue.QueueItem(item.Id);
+
+        _logger.LogInformation("Note item saved and queued with ID {ItemId}", item.Id);
 
         return item.Id;
     }

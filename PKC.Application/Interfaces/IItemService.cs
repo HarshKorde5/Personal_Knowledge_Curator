@@ -4,6 +4,6 @@ using PKC.Application.DTOs;
 
 public interface IItemService
 {
-    Task<Guid> CreateUrlAsync(Guid userId, CreateItemDto dto);
+    Task<Guid> CreateFromUrlAsync(Guid userId, CreateItemDto dto);
     Task<Guid> CreateNoteAsync(Guid userId, CreateItemDto dto);
 }

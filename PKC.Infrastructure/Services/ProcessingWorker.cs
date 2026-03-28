@@ -10,6 +10,7 @@ public class ProcessingWorker : BackgroundService
     private readonly IBackgroundTaskQueue _queue;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ProcessingWorker> _logger;
+    private const int MaxConcurrentItems = 3;
 
     public ProcessingWorker(
         IBackgroundTaskQueue queue,
@@ -23,7 +24,9 @@ public class ProcessingWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Processing Worker started");
+        _logger.LogInformation("Processing Worker started (max concurrency: {Max})", MaxConcurrentItems);
+
+        var semaphore = new SemaphoreSlim(MaxConcurrentItems);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -31,16 +34,36 @@ public class ProcessingWorker : BackgroundService
             {
                 var itemId = await _queue.DequeueAsync(stoppingToken);
 
-                using var scope = _serviceProvider.CreateScope();
+                await semaphore.WaitAsync(stoppingToken);
 
-                var processor = scope.ServiceProvider.GetRequiredService<ItemProcessingService>();
-
-                await processor.ProcessAsync(itemId);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var processor = scope.ServiceProvider.GetRequiredService<ItemProcessingService>();
+                        await processor.ProcessAsync(itemId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing item {ItemId}", itemId);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in background worker");
+                _logger.LogError(ex, "Unexpected error in background worker loop");
             }
         }
+
+        _logger.LogInformation("Processing Worker stopped");
     }
 }

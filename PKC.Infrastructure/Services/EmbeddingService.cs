@@ -10,6 +10,8 @@ public class EmbeddingService
     private readonly HttpClient _httpClient;
     private readonly ILogger<EmbeddingService> _logger;
 
+    private const int MaxEmbeddingInputLength = 8000;
+
     public EmbeddingService(HttpClient httpClient, ILogger<EmbeddingService> logger)
     {
         _httpClient = httpClient;
@@ -18,10 +20,11 @@ public class EmbeddingService
 
     public async Task<Vector> GenerateEmbeddingAsync(string text)
     {
-        if(text.Length > 1000)
+        if (text.Length > MaxEmbeddingInputLength)
         {
-            text = text.Substring(0,1000);
+            text = text.Substring(0, MaxEmbeddingInputLength);
         }
+
         var requestBody = new
         {
             model = "nomic-embed-text",
@@ -47,8 +50,9 @@ public class EmbeddingService
                 .EnumerateArray()
                 .Select(x => x.GetSingle())
                 .ToArray();
-                
+
             _logger.LogInformation("Generated embedding with dimension: {Dimension}", embeddingArray.Length);
+
             return new Vector(embeddingArray);
         }
         catch (Exception ex)

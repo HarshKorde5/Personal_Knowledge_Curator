@@ -17,10 +17,11 @@ public class ConnectionService
         _logger = logger;
     }
 
-    public async Task CreateConnectionsAsync(Guid itemId)
+    public async Task CreateConnectionsAsync(Guid itemId, Guid userId)
     {
         var sourceChunks = await _context.Chunks
-            .Where(c => c.ItemId == itemId && c.Embedding != null)
+            .Where(c => c.ItemId == itemId && c.UserId == userId && c.Embedding != null)
+            .OrderBy(c => c.Order)
             .Take(20)
             .ToListAsync();
 
@@ -39,11 +40,9 @@ public class ConnectionService
             var similarChunks = await _context.Chunks
                 .Where(target =>
                     target.Id != sourceChunk.Id &&
-                    target.Embedding != null
-                )
-                .OrderBy(target =>
-                    target.Embedding!.CosineDistance(sourceEmbedding)
-                )
+                    target.UserId == userId &&
+                    target.Embedding != null)
+                .OrderBy(target => target.Embedding!.CosineDistance(sourceEmbedding))
                 .Take(3)
                 .Select(target => new
                 {
@@ -59,6 +58,7 @@ public class ConnectionService
                     connections.Add(new Connection
                     {
                         Id = Guid.NewGuid(),
+                        UserId = userId,
                         SourceChunkId = sourceChunk.Id,
                         TargetChunkId = match.Id,
                         Score = match.Score,
@@ -76,12 +76,11 @@ public class ConnectionService
             _logger.LogInformation(
                 "Created {Count} connections for item {ItemId}",
                 connections.Count,
-                itemId
-            );
+                itemId);
         }
         else
         {
-            _logger.LogInformation("No connections created for item {ItemId}", itemId);
+            _logger.LogInformation("No strong connections found for item {ItemId}", itemId);
         }
     }
 }

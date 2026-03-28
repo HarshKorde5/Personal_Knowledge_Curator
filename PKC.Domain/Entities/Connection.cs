@@ -4,6 +4,12 @@ public class Connection
 {
     public Guid Id { get; set; }
 
+    public Guid UserId
+    {
+        get;
+        set;
+    }
+
     public Guid SourceChunkId { get; set; }
 
     public Guid TargetChunkId { get; set; }

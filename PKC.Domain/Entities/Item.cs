@@ -22,7 +22,10 @@ public class Item
 {
     public Guid Id { get; set; }
 
-    public Guid UserId { get; set; }
+    public Guid UserId { 
+        get;
+        set; 
+    }
 
     public ItemType Type { get; set; }
 
