@@ -82,22 +82,39 @@ builder.Services.AddHttpClient<AiService>(client =>
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 
-// Application Services
 builder.Services.AddScoped<ChunkingService>();
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<RagService>();
 builder.Services.AddScoped<ConnectionService>();
 builder.Services.AddScoped<ResurfacingService>();
 
+// 5. CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
-// 5. Middleware Pipeline
+// 6. Middleware Pipeline
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 // app.UseHttpsRedirection();
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -11,12 +11,19 @@ public class ItemService : IItemService
     private readonly IBackgroundTaskQueue _queue;
     private readonly ILogger<ItemService> _logger;
 
-    public ItemService(IItemRepository repo, IBackgroundTaskQueue queue, ILogger<ItemService> logger)
+    public ItemService(
+        IItemRepository repo,
+        IBackgroundTaskQueue queue,
+        ILogger<ItemService> logger)
     {
         _repo = repo;
         _queue = queue;
         _logger = logger;
     }
+
+    // -----------------------------------------------------------------------
+    // Create
+    // -----------------------------------------------------------------------
 
     public async Task<Guid> CreateFromUrlAsync(Guid userId, CreateItemDto dto)
     {
@@ -78,7 +85,10 @@ public class ItemService : IItemService
             Status = ItemStatus.Pending
         };
 
-        _logger.LogInformation("Saving PDF item for user {UserId}, file: {FilePath}", userId, filePath);
+        _logger.LogInformation(
+            "Saving PDF item for user {UserId}, file: {FilePath}",
+            userId,
+            filePath);
 
         await _repo.AddAsync(item);
         await _repo.SaveChangesAsync();
@@ -88,5 +98,40 @@ public class ItemService : IItemService
         _logger.LogInformation("PDF item saved and queued with ID {ItemId}", item.Id);
 
         return item.Id;
+    }
+
+    // -----------------------------------------------------------------------
+    // Read
+    // -----------------------------------------------------------------------
+
+    public Task<List<ItemListDto>> GetItemsAsync(Guid userId)
+        => _repo.GetAllByUserAsync(userId);
+
+    public Task<ItemDetailDto?> GetItemAsync(Guid itemId, Guid userId)
+        => _repo.GetByIdAsync(itemId, userId);
+
+    public Task<ItemStatusDto?> GetItemStatusAsync(Guid itemId, Guid userId)
+        => _repo.GetStatusAsync(itemId, userId);
+
+    // -----------------------------------------------------------------------
+    // Delete
+    // -----------------------------------------------------------------------
+
+    public async Task<bool> DeleteItemAsync(Guid itemId, Guid userId)
+    {
+        var deleted = await _repo.DeleteAsync(itemId, userId);
+
+        if (deleted)
+            _logger.LogInformation(
+                "Item {ItemId} deleted by user {UserId}",
+                itemId,
+                userId);
+        else
+            _logger.LogWarning(
+                "Delete attempt for item {ItemId} by user {UserId} — not found or wrong user",
+                itemId,
+                userId);
+
+        return deleted;
     }
 }
