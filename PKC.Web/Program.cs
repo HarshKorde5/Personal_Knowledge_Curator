@@ -11,7 +11,18 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Upload size limits
+var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: myAllowSpecificOrigins,
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 50 * 1024 * 1024;
@@ -22,7 +33,6 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
 });
 
-// 2. Database Configuration
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -32,7 +42,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             npgsqlOptions.CommandTimeout(300);
         }));
 
-// 3. Authentication & JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
@@ -56,16 +65,17 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 4. Dependency Injection
-builder.Services.AddControllers();
+// 5. Dependency Injection
+builder.Services.AddControllers().AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
-// Core Auth & Data
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IResourceRepository, ResourceRepository>();
 builder.Services.AddScoped<IResourceService, ResourceService>();
 
-// Background Processing
 builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 builder.Services.AddScoped<ResourceProcessingService>();
 builder.Services.AddHostedService<ProcessingWorker>();
@@ -82,7 +92,6 @@ builder.Services.AddHttpClient<AiService>(client =>
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 
-// Application Services
 builder.Services.AddScoped<ChunkingService>();
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<RagService>();
@@ -91,13 +100,14 @@ builder.Services.AddScoped<ResurfacingService>();
 
 var app = builder.Build();
 
-// 5. Middleware Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-// app.UseHttpsRedirection();
+app.UseRouting();
+
+app.UseCors(myAllowSpecificOrigins);
 
 app.UseAuthentication();
 app.UseAuthorization();

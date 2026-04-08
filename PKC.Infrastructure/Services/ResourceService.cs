@@ -17,7 +17,11 @@ public class ResourceService : IResourceService
         _queue = queue;
         _logger = logger;
     }
-
+    public async Task<IEnumerable<Resource>> GetUserResourcesAsync(Guid userId)
+    {
+        _logger.LogInformation("Fetching all resources for user {UserId}", userId);
+        return await _repo.GetByUserIdAsync(userId);
+    }
     public async Task<Guid> CreateFromUrlAsync(Guid userId, CreateResourceDto dto)
     {
         var resource = new Resource

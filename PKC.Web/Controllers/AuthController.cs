@@ -36,7 +36,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             // 500 Internal Server Error: Something else went wrong
-            return StatusCode(500, new { message = "An unexpected error occurred." });
+            return StatusCode(500, new { message = "An unexpected error occurred."+ex });
         }
     }
     [HttpPost("login")]

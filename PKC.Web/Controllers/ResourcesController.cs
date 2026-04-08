@@ -26,6 +26,28 @@ public class ResourcesController : ControllerBase
         _logger = logger;
     }
 
+
+    // -------------------------------------------------------------------------
+    // GET api/resources
+    // -------------------------------------------------------------------------
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        try
+        {
+            var userId = HttpContext.GetUserId();
+            var resources = await _service.GetUserResourcesAsync(userId);
+
+            // Map to DTOs if necessary, or return the entities
+            return Ok(resources);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve resources");
+            return StatusCode(500, new { message = "Error loading resources." });
+        }
+    }
+
     // -------------------------------------------------------------------------
     // POST api/resources/url
     // -------------------------------------------------------------------------

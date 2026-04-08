@@ -1,6 +1,7 @@
 namespace PKC.Application.Interfaces;
 
 using PKC.Application.DTOs;
+using PKC.Domain.Entities;
 
 public interface IResourceService
 {
@@ -8,4 +9,6 @@ public interface IResourceService
 
     Task<Guid> CreateNoteAsync(Guid userId, CreateResourceDto dto);
     Task<Guid> CreateFromPdfAsync(Guid userId, string filePath, string? title);
+
+    Task<IEnumerable<Resource>> GetUserResourcesAsync(Guid userId);
 }

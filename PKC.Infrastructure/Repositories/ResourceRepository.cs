@@ -1,5 +1,5 @@
 namespace PKC.Infrastructure.Repositories;
-
+using Microsoft.EntityFrameworkCore;
 using PKC.Application.Interfaces;
 using PKC.Domain.Entities;
 using PKC.Infrastructure.Data;
@@ -21,5 +21,12 @@ public class ResourceRepository : IResourceRepository
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();
+    }
+    public async Task<IEnumerable<Resource>> GetByUserIdAsync(Guid userId)
+    {
+        return await _context.Resources
+            .Where(r => r.UserId == userId)
+            .OrderByDescending(r => r.CreatedAt) // Good practice to show newest first
+            .ToListAsync();
     }
 }
