@@ -14,9 +14,9 @@ public class BackgroundTaskQueue : IBackgroundTaskQueue
         _queue = Channel.CreateUnbounded<Guid>();
     }
 
-    public void QueueItem(Guid itemId)
+    public void QueueResource(Guid resourceId)
     {
-        _queue.Writer.TryWrite(itemId);
+        _queue.Writer.TryWrite(resourceId);
     }
 
     public async Task<Guid> DequeueAsync(CancellationToken cancellationToken)

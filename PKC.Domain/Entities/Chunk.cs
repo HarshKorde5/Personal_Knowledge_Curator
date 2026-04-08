@@ -10,7 +10,7 @@ public class Chunk
         get;
         set;
     }
-    public Guid ItemId { get; set; }
+    public Guid ResourceId { get; set; }
 
     public Vector? Embedding { get; set; }
 

@@ -14,7 +14,7 @@ public class SearchService
 
     // FIX: Cosine distance threshold. Values >= this are considered semantically
     // unrelated and excluded from results. Range is 0 (identical) to 2 (opposite).
-    // 0.5 is a practical cutoff — anything further is noise, not signal.
+    // 0.5 is a practical cutoff - anything further is noise, not signal.
     private const double SimilarityThreshold = 0.5;
 
     public SearchService(AppDbContext context, EmbeddingService embeddingService)
@@ -34,7 +34,7 @@ public class SearchService
             .Select(c => new SearchResultDto
             {
                 Id = c.Id,
-                ItemId = c.ItemId,
+                ResourceId = c.ResourceId,
                 Content = c.Content,
                 Score = (double)c.Embedding!.CosineDistance(queryEmbedding)
             })

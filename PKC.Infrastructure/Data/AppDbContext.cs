@@ -10,7 +10,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
-    public DbSet<Item> Items => Set<Item>();
+    public DbSet<Resource> Resources => Set<Resource>();
     public DbSet<Chunk> Chunks => Set<Chunk>();
 
     public DbSet<Connection> Connections => Set<Connection>();
@@ -33,9 +33,9 @@ public class AppDbContext : DbContext
         });
 
         // ---------------------------
-        // ITEM CONFIGURATION
+        // Resource CONFIGURATION
         // ---------------------------
-        modelBuilder.Entity<Item>(entity =>
+        modelBuilder.Entity<Resource>(entity =>
         {
             entity.HasKey(x => x.Id);
 
@@ -73,7 +73,7 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(x => x.Id);
 
-            entity.HasIndex(x => x.ItemId);
+            entity.HasIndex(x => x.ResourceId);
 
             entity.Property(x => x.Content)
                 .HasColumnType("text");
@@ -109,7 +109,7 @@ public class AppDbContext : DbContext
         //  User attachment congfiguration
         //------------------------------------------------------------------
 
-        modelBuilder.Entity<Item>()
+        modelBuilder.Entity<Resource>()
             .HasOne<User>()
             .WithMany()
             .HasForeignKey(x => x.UserId);

@@ -46,7 +46,7 @@ public class RagService
             answer,
             related,
             topMatchId = topResult.Id,
-            sourceItemId = topResult.ItemId
+            sourceResourceId = topResult.ResourceId
         };
     }
 }

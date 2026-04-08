@@ -62,12 +62,12 @@ builder.Services.AddOpenApi();
 
 // Core Auth & Data
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<IItemRepository, ItemRepository>();
-builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddScoped<IResourceRepository, ResourceRepository>();
+builder.Services.AddScoped<IResourceService, ResourceService>();
 
 // Background Processing
 builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
-builder.Services.AddScoped<ItemProcessingService>();
+builder.Services.AddScoped<ResourceProcessingService>();
 builder.Services.AddHostedService<ProcessingWorker>();
 
 builder.Services.AddHttpClient<ContentExtractor>(client =>

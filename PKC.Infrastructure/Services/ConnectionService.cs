@@ -17,17 +17,17 @@ public class ConnectionService
         _logger = logger;
     }
 
-    public async Task CreateConnectionsAsync(Guid itemId, Guid userId)
+    public async Task CreateConnectionsAsync(Guid resourceId, Guid userId)
     {
         var sourceChunks = await _context.Chunks
-            .Where(c => c.ItemId == itemId && c.UserId == userId && c.Embedding != null)
+            .Where(c => c.ResourceId == resourceId && c.UserId == userId && c.Embedding != null)
             .OrderBy(c => c.Order)
             .Take(20)
             .ToListAsync();
 
         if (sourceChunks.Count == 0)
         {
-            _logger.LogWarning("No chunks found for item {ItemId}", itemId);
+            _logger.LogWarning("No chunks found for resource {ResourceId}", resourceId);
             return;
         }
 
@@ -74,13 +74,13 @@ public class ConnectionService
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Created {Count} connections for item {ItemId}",
+                "Created {Count} connections for resource {ResourceId}",
                 connections.Count,
-                itemId);
+                resourceId);
         }
         else
         {
-            _logger.LogInformation("No strong connections found for item {ItemId}", itemId);
+            _logger.LogInformation("No strong connections found for resource {ResourceId}", resourceId);
         }
     }
 }

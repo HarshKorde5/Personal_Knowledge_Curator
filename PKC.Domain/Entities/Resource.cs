@@ -1,13 +1,13 @@
 namespace PKC.Domain.Entities;
 
-public enum ItemType
+public enum ResourceType
 {
     Url,
     Pdf,
     Note
 }
 
-public enum ItemStatus
+public enum ResourceStatus
 {
     Pending,
     Extracting,
@@ -18,7 +18,7 @@ public enum ItemStatus
     Failed
 }
 
-public class Item
+public class Resource
 {
     public Guid Id { get; set; }
 
@@ -27,7 +27,7 @@ public class Item
         set; 
     }
 
-    public ItemType Type { get; set; }
+    public ResourceType Type { get; set; }
 
     public string? Title { get; set; }
 
@@ -39,7 +39,7 @@ public class Item
 
     public string? ExtractedText { get; set; }
 
-    public ItemStatus Status { get; set; } = ItemStatus.Pending;
+    public ResourceStatus Status { get; set; } = ResourceStatus.Pending;
 
     public string? FailureReason { get; set; }
 

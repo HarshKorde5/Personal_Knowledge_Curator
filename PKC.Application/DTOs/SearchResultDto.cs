@@ -4,7 +4,7 @@ public class SearchResultDto
 {
     public Guid Id { get; set; }
 
-    public Guid ItemId { get; set; }
+    public Guid ResourceId { get; set; }
 
     public string Content { get; set; } = null!;
 

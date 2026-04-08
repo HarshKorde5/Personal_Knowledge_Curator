@@ -2,6 +2,6 @@ namespace PKC.Application.Interfaces;
 
 public interface IBackgroundTaskQueue
 {
-    void QueueItem(Guid itemId);
+    void QueueResource(Guid resourceId);
     Task<Guid> DequeueAsync(CancellationToken cancellationToken);
 }

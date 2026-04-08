@@ -10,7 +10,7 @@ public class ProcessingWorker : BackgroundService
     private readonly IBackgroundTaskQueue _queue;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ProcessingWorker> _logger;
-    private const int MaxConcurrentItems = 3;
+    private const int MaxConcurrentResources = 3;
 
     public ProcessingWorker(
         IBackgroundTaskQueue queue,
@@ -24,15 +24,15 @@ public class ProcessingWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Processing Worker started (max concurrency: {Max})", MaxConcurrentItems);
+        _logger.LogInformation("Processing Worker started (max concurrency: {Max})", MaxConcurrentResources);
 
-        var semaphore = new SemaphoreSlim(MaxConcurrentItems);
+        var semaphore = new SemaphoreSlim(MaxConcurrentResources);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var itemId = await _queue.DequeueAsync(stoppingToken);
+                var resourceId = await _queue.DequeueAsync(stoppingToken);
 
                 await semaphore.WaitAsync(stoppingToken);
 
@@ -41,12 +41,12 @@ public class ProcessingWorker : BackgroundService
                     try
                     {
                         using var scope = _serviceProvider.CreateScope();
-                        var processor = scope.ServiceProvider.GetRequiredService<ItemProcessingService>();
-                        await processor.ProcessAsync(itemId);
+                        var processor = scope.ServiceProvider.GetRequiredService<ResourceProcessingService>();
+                        await processor.ProcessAsync(resourceId);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error processing item {ItemId}", itemId);
+                        _logger.LogError(ex, "Error processing resource {ResourceId}", resourceId);
                     }
                     finally
                     {

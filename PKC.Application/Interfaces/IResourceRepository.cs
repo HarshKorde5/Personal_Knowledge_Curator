@@ -2,8 +2,8 @@ namespace PKC.Application.Interfaces;
 
 using PKC.Domain.Entities;
 
-public interface IItemRepository
+public interface IResourceRepository
 {
-    Task AddAsync(Item item);
+    Task AddAsync(Resource resource);
     Task SaveChangesAsync();
 }

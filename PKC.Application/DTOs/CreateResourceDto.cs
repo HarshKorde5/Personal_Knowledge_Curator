@@ -1,6 +1,6 @@
 namespace PKC.Application.DTOs;
 
-public class CreateItemDto
+public class CreateResourceDto
 {
     public string? Url { get; set; }
 

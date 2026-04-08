@@ -5,18 +5,18 @@ using PKC.Infrastructure.Data;
 
 namespace PKC.Infrastructure.Services;
 
-public class ItemProcessingService
+public class ResourceProcessingService
 {
     private readonly AppDbContext _context;
-    private readonly ILogger<ItemProcessingService> _logger;
+    private readonly ILogger<ResourceProcessingService> _logger;
     private readonly ContentExtractor _extractor;
     private readonly ChunkingService _chunkingService;
     private readonly EmbeddingService _embeddingService;
     private readonly ConnectionService _connectionService;
 
-    public ItemProcessingService(
+    public ResourceProcessingService(
         AppDbContext context,
-        ILogger<ItemProcessingService> logger,
+        ILogger<ResourceProcessingService> logger,
         ContentExtractor extractor,
         ChunkingService chunkingService,
         EmbeddingService embeddingService,
@@ -30,13 +30,13 @@ public class ItemProcessingService
         _connectionService = connectionService;
     }
 
-    public async Task ProcessAsync(Guid itemId)
+    public async Task ProcessAsync(Guid resourceId)
     {
-        var item = await _context.Items.FirstOrDefaultAsync(x => x.Id == itemId);
+        var resource = await _context.Resources.FirstOrDefaultAsync(x => x.Id == resourceId);
 
-        if (item == null)
+        if (resource == null)
         {
-            _logger.LogWarning("Item not found: {ItemId}", itemId);
+            _logger.LogWarning("Resource not found: {ResourceId}", resourceId);
             return;
         }
 
@@ -45,103 +45,103 @@ public class ItemProcessingService
             //------------------------------------------------------------------------------------
             // STATUS: EXTRACTING 
             //------------------------------------------------------------------------------------
-            item.Status = ItemStatus.Extracting;
+            resource.Status = ResourceStatus.Extracting;
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Extracting content for item {ItemId} (type: {Type})",
-                itemId,
-                item.Type);
+                "Extracting content for resource {ResourceId} (type: {Type})",
+                resourceId,
+                resource.Type);
 
             string? textToProcess = null;
 
-            if (item.Type == ItemType.Url && !string.IsNullOrEmpty(item.SourceUrl))
+            if (resource.Type == ResourceType.Url && !string.IsNullOrEmpty(resource.SourceUrl))
             {
-                var extracted = await _extractor.ExtractFromUrlAsync(item.SourceUrl);
+                var extracted = await _extractor.ExtractFromUrlAsync(resource.SourceUrl);
 
                 if (string.IsNullOrWhiteSpace(extracted))
                 {
-                    item.Status = ItemStatus.Failed;
-                    item.FailureReason = "Failed to extract content from URL";
+                    resource.Status = ResourceStatus.Failed;
+                    resource.FailureReason = "Failed to extract content from URL";
                     await _context.SaveChangesAsync();
                     return;
                 }
 
-                item.ExtractedText = extracted;
+                resource.ExtractedText = extracted;
                 textToProcess = extracted;
             }
-            else if (item.Type == ItemType.Pdf && !string.IsNullOrEmpty(item.FilePath))
+            else if (resource.Type == ResourceType.Pdf && !string.IsNullOrEmpty(resource.FilePath))
             {
-                if (!File.Exists(item.FilePath))
+                if (!File.Exists(resource.FilePath))
                 {
-                    item.Status = ItemStatus.Failed;
-                    item.FailureReason = $"PDF file not found on disk: {item.FilePath}";
+                    resource.Status = ResourceStatus.Failed;
+                    resource.FailureReason = $"PDF file not found on disk: {resource.FilePath}";
                     await _context.SaveChangesAsync();
 
                     _logger.LogError(
-                        "PDF file missing for item {ItemId}: {FilePath}",
-                        itemId,
-                        item.FilePath);
+                        "PDF file missing for resource {ResourceId}: {FilePath}",
+                        resourceId,
+                        resource.FilePath);
 
                     return;
                 }
 
-                var extracted = _extractor.ExtractFromPdf(item.FilePath);
+                var extracted = _extractor.ExtractFromPdf(resource.FilePath);
 
                 if (string.IsNullOrWhiteSpace(extracted))
                 {
-                    item.Status = ItemStatus.Failed;
-                    item.FailureReason = "Failed to extract text from PDF — file may be scanned/image-only";
+                    resource.Status = ResourceStatus.Failed;
+                    resource.FailureReason = "Failed to extract text from PDF — file may be scanned/image-only";
                     await _context.SaveChangesAsync();
                     return;
                 }
 
-                item.ExtractedText = extracted;
+                resource.ExtractedText = extracted;
                 textToProcess = extracted;
             }
-            else if (item.Type == ItemType.Note && !string.IsNullOrEmpty(item.RawContent))
+            else if (resource.Type == ResourceType.Note && !string.IsNullOrEmpty(resource.RawContent))
             {
-                textToProcess = item.RawContent;
+                textToProcess = resource.RawContent;
             }
 
             if (string.IsNullOrWhiteSpace(textToProcess))
             {
-                item.Status = ItemStatus.Failed;
-                item.FailureReason = "No content available to process";
+                resource.Status = ResourceStatus.Failed;
+                resource.FailureReason = "No content available to process";
                 await _context.SaveChangesAsync();
                 return;
             }
 
-            item.WordCount = textToProcess
+            resource.WordCount = textToProcess
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Length;
 
             //------------------------------------------------------------------------------------
             // STATUS: CHUNKING
             //------------------------------------------------------------------------------------
-            item.Status = ItemStatus.Chunking;
+            resource.Status = ResourceStatus.Chunking;
             await _context.SaveChangesAsync();
 
-            var chunks = _chunkingService.CreateChunks(item.Id, item.UserId, textToProcess);
+            var chunks = _chunkingService.CreateChunks(resource.Id, resource.UserId, textToProcess);
 
             await _context.Chunks.AddRangeAsync(chunks);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Created {Count} chunks for item {ItemId}", chunks.Count, itemId);
+            _logger.LogInformation("Created {Count} chunks for resource {ResourceId}", chunks.Count, resourceId);
 
             //------------------------------------------------------------------------------------
             // STATUS: EMBEDDING
             //------------------------------------------------------------------------------------
-            item.Status = ItemStatus.Embedding;
+            resource.Status = ResourceStatus.Embedding;
             await _context.SaveChangesAsync();
 
-            var itemChunks = await _context.Chunks
-                .Where(x => x.ItemId == item.Id)
+            var resourceChunks = await _context.Chunks
+                .Where(x => x.ResourceId == resource.Id)
                 .ToListAsync();
 
             var semaphore = new SemaphoreSlim(3);
 
-            var tasks = itemChunks.Select(async chunk =>
+            var tasks = resourceChunks.Select(async chunk =>
             {
                 await semaphore.WaitAsync();
                 try
@@ -162,33 +162,33 @@ public class ItemProcessingService
             await Task.WhenAll(tasks);
 
             _logger.LogInformation(
-                "Saving {Count} embeddings for item {ItemId}",
-                itemChunks.Count,
-                itemId);
+                "Saving {Count} embeddings for resource {ResourceId}",
+                resourceChunks.Count,
+                resourceId);
 
             await _context.SaveChangesAsync();
 
             //------------------------------------------------------------------------------------
             // CONNECTION DISCOVERY
             //------------------------------------------------------------------------------------
-            await _connectionService.CreateConnectionsAsync(item.Id, item.UserId);
+            await _connectionService.CreateConnectionsAsync(resource.Id, resource.UserId);
 
             //------------------------------------------------------------------------------------
             // STATUS: READY
             //------------------------------------------------------------------------------------
-            item.Status = ItemStatus.Ready;
-            item.ProcessedAt = DateTime.UtcNow;
+            resource.Status = ResourceStatus.Ready;
+            resource.ProcessedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Item {ItemId} processing complete", itemId);
+            _logger.LogInformation("Resource {ResourceId} processing complete", resourceId);
         }
         catch (Exception ex)
         {
-            item.Status = ItemStatus.Failed;
-            item.FailureReason = ex.Message;
+            resource.Status = ResourceStatus.Failed;
+            resource.FailureReason = ex.Message;
             await _context.SaveChangesAsync();
 
-            _logger.LogError(ex, "Processing failed for item {ItemId}", itemId);
+            _logger.LogError(ex, "Processing failed for resource {ResourceId}", resourceId);
         }
     }
 }

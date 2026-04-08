@@ -7,7 +7,7 @@ public class ChunkingService
     private const int ChunkSize = 500;
     private const int Overlap = 50;
 
-    public List<Chunk> CreateChunks(Guid itemId, Guid userId, string text)
+    public List<Chunk> CreateChunks(Guid resourceId, Guid userId, string text)
     {
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var chunks = new List<Chunk>();
@@ -27,7 +27,7 @@ public class ChunkingService
             chunks.Add(new Chunk
             {
                 Id = Guid.NewGuid(),
-                ItemId = itemId,
+                ResourceId = resourceId,
                 UserId = userId,
                 Content = content,
                 Order = order++,

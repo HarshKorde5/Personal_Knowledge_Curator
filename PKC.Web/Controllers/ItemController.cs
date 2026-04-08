@@ -8,18 +8,18 @@ namespace PKC.Web.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/items")]
-public class ItemsController : ControllerBase
+[Route("api/resources")]
+public class ResourcesController : ControllerBase
 {
-    private readonly IItemService _service;
+    private readonly IResourceService _service;
     private readonly IConfiguration _config;
-    private readonly ILogger<ItemsController> _logger;
+    private readonly ILogger<ResourcesController> _logger;
     private const long MaxPdfSizeBytes = 50 * 1024 * 1024;
 
-    public ItemsController(
-        IItemService service,
+    public ResourcesController(
+        IResourceService service,
         IConfiguration config,
-        ILogger<ItemsController> logger)
+        ILogger<ResourcesController> logger)
     {
         _service = service;
         _config = config;
@@ -27,16 +27,16 @@ public class ItemsController : ControllerBase
     }
 
     // -------------------------------------------------------------------------
-    // POST api/items/url
+    // POST api/resources/url
     // -------------------------------------------------------------------------
     [HttpPost("url")]
-    public async Task<IActionResult> CreateFromUrl(CreateItemDto dto)
+    public async Task<IActionResult> CreateFromUrl(CreateResourceDto dto)
     {
         try
         {
             var userId = HttpContext.GetUserId();
-            var itemId = await _service.CreateFromUrlAsync(userId, dto);
-            return Accepted(new { itemId });
+            var resourceId = await _service.CreateFromUrlAsync(userId, dto);
+            return Accepted(new { resourceId });
         }
         catch (UnauthorizedAccessException)
         {
@@ -49,16 +49,16 @@ public class ItemsController : ControllerBase
     }
 
     // -------------------------------------------------------------------------
-    // POST api/items/note
+    // POST api/resources/note
     // -------------------------------------------------------------------------
     [HttpPost("note")]
-    public async Task<IActionResult> CreateNote(CreateItemDto dto)
+    public async Task<IActionResult> CreateNote(CreateResourceDto dto)
     {
         try
         {
             var userId = HttpContext.GetUserId();
-            var itemId = await _service.CreateNoteAsync(userId, dto);
-            return Accepted(new { itemId });
+            var resourceId = await _service.CreateNoteAsync(userId, dto);
+            return Accepted(new { resourceId });
         }
         catch (UnauthorizedAccessException)
         {
@@ -71,7 +71,7 @@ public class ItemsController : ControllerBase
     }
 
     // -------------------------------------------------------------------------
-    // POST api/items/pdf
+    // POST api/resources/pdf
     // -------------------------------------------------------------------------
     [HttpPost("pdf")]
     [RequestSizeLimit(50 * 1024 * 1024)]
@@ -129,9 +129,9 @@ public class ItemsController : ControllerBase
                 savedFilePath,
                 file.Length);
 
-            var itemId = await _service.CreateFromPdfAsync(userId, savedFilePath, title);
+            var resourceId = await _service.CreateFromPdfAsync(userId, savedFilePath, title);
 
-            return Accepted(new { itemId });
+            return Accepted(new { resourceId });
         }
         catch (UnauthorizedAccessException)
         {
