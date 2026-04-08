@@ -277,7 +277,7 @@ export default function Ingest() {
               />
             </div>
 
-            {/* ✅ Progress Bar */}
+            {/* Progress Bar */}
             {uploadProgress > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{
